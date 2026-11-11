@@ -39,7 +39,54 @@
 <!-- The path a submission takes, from arriving to the label a reader sees.
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
 
+Planned workflow:
 
+1. The entire `submit()` workflow takes in `text` and `creator_id`, and pulls them out of the payload.
+2. `detector.model_signal` takes in the text and uses `detector.perplexity` to generate a value for "how surprised the model is by the text." It returns a 0–1 score for how AI-like it looks (`model_score`).
+3. Create an associated `content_id`.
+4. Create an AI-style 0–1 score using 3 measures (how much sentence length varies, unique words divided by total words, and punctuation density). This is outputted by `style_signal`.
+5. Use both `model_score` (predictability) and `style_score` (text shape) in `scoring.combine_signals`.
+6. Use `combined_score` to return a guess and label, with `unsure` as a possibility, in `scoring.score_to_label`. Use the combined score for `confidence`, then log the submission with `audit.log_decision`.
+7. Return JSON with an associated `content_id`, a `guess` of AI, human, or unsure, a `confidence` value, a `label`, a `model_score`, and a `style_score`.
+
+### A human writer gets called AI
+
+Suppose someone writes an academic paragraph themselves, using a smaller vocabulary and sentences of even length. They get a combined score of `0.82` and a label saying, "This looks AI-generated. If you wrote it, you can request a review." Those numbers and words are a hypothetical example, not a measured result or the final label.
+
+The writer sends their `content_id` and reasoning to `/appeal`. The service checks that the submission exists, then records an `under_review` event beside the original decision. It confirms the request. It does not automatically change the score or arrange a staffed review. That is why a label should not promise more than the service actually does.
+
+### What the endpoints take in and return
+
+These are the contracts I plan to build against. `/appeal` and the final labels belong to milestone 5.
+
+**`POST /submit`**
+
+| Request field | What it means |
+|---|---|
+| `text` | A string containing the writing. At least 3 whitespace-separated words, at most 12,000 characters including surrounding whitespace. Whitespace-only text is empty. |
+| `creator_id` | A nonempty string identifying the writer, at most 128 characters after trimming surrounding whitespace. |
+
+The body must be a JSON object sent with `Content-Type: application/json`. Extra fields are ignored. Text is trimmed before scoring. The detector reads at most 400 tokens; the style signal will read the full accepted text, so the two scores may cover different amounts of writing.
+
+| Response field | What it means |
+|---|---|
+| `content_id` | A generated UUID string for this submission and any later appeal. |
+| `guess` | `ai`, `human`, or `unsure` once label mapping is connected. |
+| `confidence` | The combined 0–1 score, where higher points toward AI. It is not a probability of authorship or confidence in whichever guess won. |
+| `label` | The sentence shown to the writer. |
+| `model_score` | The detector's 0–1 predictability score, with higher pointing toward AI. |
+| `style_score` | The 0–1 text-shape score, with higher pointing toward AI. |
+
+A successful submission returns `200` and writes a decision through `audit.log_decision`. Missing fields, a non-object body, wrong types, empty strings, and too-short text return `400`. Excessive text or an excessive creator ID returns `413`. A model-loading failure returns `503`. Errors return an `error` code and a readable `message`; input errors are checked before model inference. A rejected input does not create a decision entry.
+
+**`POST /appeal` — planned for milestone 5**
+
+| Request field | What it means |
+|---|---|
+| `content_id` | The nonempty string returned by a real submission. |
+| `reasoning` | The writer's explanation: a nonempty string, at most 4,000 characters. |
+
+The body must be a JSON object. Missing fields, wrong types, or empty strings return `400`; excessive reasoning returns `413`; an unknown ID returns `404`. A successful request returns `200` with `content_id`, `status: "under_review"`, and a confirmation `message`. It appends an appeal event using the creator from the original decision. The original decision stays in the log, and no automatic reclassification is promised.
 
 ---
 
@@ -55,17 +102,29 @@
 
 **What it measures:**
 
+How surprised the model is by the text, using perplexity. `model_signal` turns that into a 0–1 score, where higher means more AI-looking.
+
 **Why that might differ between human and AI writing:**
 
+According to `detector.py`, AI writers tend to write in a straightforward, linear style, where the next word or token is likely to follow the words coming before. Human writing can be less predictable.
+
 **What it can't see:**
+
+Human writers could write "AI-like" by writing in a plain and structured way. Having structure and straightforwardness can make human writing sound like AI to this signal. P.S. I can see how this would hurt people who trained or studied to make their writing cleaner and well structured.
 
 ### Signal two — the style signal
 
 **What it measures:**
 
+How much sentence length varies, unique words divided by total words, and punctuation density. These measure text shape, without understanding its meaning.
+
 **Why that might differ between human and AI writing:**
 
+According to `stylometry.py`, AI tends to write with less variety in vocabulary and similar sentence lengths. The suggested reason is the way models are trained: to predict the next word.
+
 **What it can't see:**
+
+A human can write sentences of even length or use a smaller vocabulary range, out of training or habit. That raises concern for a lot of academic writing, where you are meant to write in a certain, formal style that can reward habits that trigger AI-looking scores.
 
 ### The combining rule
 
