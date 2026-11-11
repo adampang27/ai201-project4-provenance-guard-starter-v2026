@@ -46,6 +46,11 @@ DETECTOR_MODEL = os.getenv("AI201_DETECTOR_MODEL", "gpt2")
 # 300 words, which is enough for the signal to mean something.
 DETECTOR_MAX_TOKENS = 400
 
+# Validate these before invoking the model.
+MIN_TEXT_WORDS = 3
+MAX_TEXT_CHARACTERS = 12_000
+MAX_CREATOR_ID_CHARACTERS = 128
+
 
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
 # How much each signal counts toward the combined score.

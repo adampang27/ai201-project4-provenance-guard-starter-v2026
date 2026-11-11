@@ -30,6 +30,7 @@ from flask import Flask, jsonify, request
 
 import audit
 import config
+import detector
 
 app = Flask(__name__)
 
@@ -199,17 +200,53 @@ def submit():
     what should this do when `text` is missing, empty, or enormous? A crash on
     a malformed input is one of the most common real failures there is.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(error="invalid_body", message="Send a JSON object with text and creator_id."), 400
 
-    # TODO: delete this and build the route.
+    text = payload.get("text")
+    creator_id = payload.get("creator_id")
+    if not isinstance(text, str) or not text.strip():
+        return jsonify(error="invalid_text", message="text must be a nonempty string."), 400
+    if not isinstance(creator_id, str) or not creator_id.strip():
+        return jsonify(error="invalid_creator_id", message="creator_id must be a nonempty string."), 400
+    if len(text) > config.MAX_TEXT_CHARACTERS or len(creator_id.strip()) > config.MAX_CREATOR_ID_CHARACTERS:
+        return jsonify(error="input_too_large", message="text or creator_id exceeds the documented character limit."), 413
+
+    text, creator_id = text.strip(), creator_id.strip()
+    if len(text.split()) < config.MIN_TEXT_WORDS:
+        return jsonify(error="text_too_short", message="text must contain at least 3 words."), 400
+
+    try:
+        model_score = detector.model_signal(text)
+    except detector.DetectorUnavailable:
+        return jsonify(error="detector_unavailable", message="The detector could not be loaded. Try again after checking the model installation."), 503
+    except ValueError:
+        return jsonify(error="invalid_text", message="The detector needs at least 3 tokens to score the text."), 400
+
+    content_id = str(uuid.uuid4())
+    # Milestone 3: transport, real first signal, persistence. Later stages follow.
+    guess, confidence = "unsure", 0.5
+    label = "PLACEHOLDER — label mapping belongs to milestone 5."
+    style_score = 0.5
+    audit.log_decision(
+        content_id=content_id,
+        creator_id=creator_id,
+        guess=guess,
+        model_score=model_score,
+        style_score=style_score,
+        combined_score=confidence,
+        label=label,
+        score_stage="model_only",
+    )
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /submit isn't built yet — see the TODO in app.py.",
-        "you_sent": {
-            "text_length": len(payload.get("text", "")),
-            "creator_id": payload.get("creator_id"),
-        },
-    }), 501
+        "content_id": content_id,
+        "guess": guess,
+        "confidence": confidence,
+        "label": label,
+        "model_score": model_score,
+        "style_score": style_score,
+    })
 
 
 @app.post("/appeal")
