@@ -1,8 +1,6 @@
 """
 Turning two numbers into one, and one number into something a person can read.
-← YOU BUILD THIS IN MILESTONES 4 AND 5
-
-Two functions live here, and both are stubs.
+Combining is implemented in milestone 4; labels remain milestone 5 work.
 
 `combine_signals` is where your false-positive decision from Milestone 1
 actually gets made. Everything above it — the labels, the appeal path — is
@@ -16,12 +14,14 @@ function holding your combining rule. The grader checks your code against what
 you claim, so that line should read `scoring.py::combine_signals`.
 """
 
+import math
+
 import config
 
 
 def combine_signals(model_score: float, style_score: float) -> float:
     """
-    Combine two 0–1 signals into one 0–1 score. ← TODO (Milestone 4)
+    Combine finite 0–1 signals with the configured nonnegative weights.
 
     Both inputs point the same way: higher means more likely AI. Your output
     should too.
@@ -49,14 +49,18 @@ def combine_signals(model_score: float, style_score: float) -> float:
       - Milestone 4 asks you to find a case where your two signals split and
         write it down. That case is what this rule exists to handle.
 
-    The weights in config.py are placeholders. Change them, or ignore them and
-    write a different rule.
+    The chosen equal-weight mean is documented in README.md.
     """
-    # TODO: replace this
-    return (
-        config.WEIGHT_MODEL_SIGNAL * model_score
-        + config.WEIGHT_STYLE_SIGNAL * style_score
-    )
+    if any(not math.isfinite(score) or not 0.0 <= score <= 1.0 for score in (model_score, style_score)):
+        raise ValueError("Signal scores must be finite numbers from 0 to 1.")
+    model_weight, style_weight = config.WEIGHT_MODEL_SIGNAL, config.WEIGHT_STYLE_SIGNAL
+    if any(not math.isfinite(weight) or weight < 0.0 for weight in (model_weight, style_weight)):
+        raise ValueError("Signal weights must be finite and nonnegative.")
+    total = model_weight + style_weight
+    if total <= 0.0 or not math.isfinite(total):
+        raise ValueError("Signal weights must have a finite, positive total.")
+    score = (model_weight * model_score + style_weight * style_score) / total
+    return round(min(max(score, 0.0), 1.0), 4)
 
 
 def score_to_label(score: float) -> tuple[str, str]:

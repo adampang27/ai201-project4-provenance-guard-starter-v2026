@@ -1,12 +1,10 @@
 """
-Signal two: the style signal. ← YOU BUILD THIS IN MILESTONE 4
+Signal two: the style signal, implemented in milestone 4.
 
-Signal one reads the text for meaning. This one measures it *as text* — the
-shape of it, without understanding a word.
+Signal one measures predictability. This one measures text shape, without
+understanding a word.
 
-Three measures are stubbed below because the brief names those three. They are
-stubs, not implementations: what they compute is yours, and so is how you
-combine them.
+The style score averages three measurements after converting each to 0–1.
 
     sentence_length_spread   do sentences vary in length, or march in step?
     type_token_ratio         how much of the vocabulary repeats?
@@ -32,6 +30,9 @@ anything together:
 
 import re
 import statistics
+import unicodedata
+
+import config
 
 
 def sentences(text: str) -> list[str]:
@@ -45,32 +46,25 @@ def words(text: str) -> list[str]:
     return re.findall(r"[a-z0-9']+", text.lower())
 
 
-# ── The three measures — YOU BUILD THESE ─────────────────────────────────────
+# ── The three raw measures ──────────────────────────────────────────────────
 
 def sentence_length_spread(text: str) -> float:
     """
-    How much sentence length varies. ← TODO
+    How much sentence lengths vary relative to their mean (pstdev / mean).
 
-    Returns:
-        A float. Decide yourself what scale it's on and which direction means
-        "more human" — then write that down, because your combining rule
-        depends on knowing it.
-
-    A hint on what you're reaching for: the standard deviation of sentence
-    lengths, probably divided by the mean so a long text and a short one are
-    comparable. `statistics.stdev` is imported for you.
-
-    Watch the edge case: a one-sentence submission has no spread at all, and
-    `stdev` raises on fewer than two values. Decide what that should return
-    before the attack set decides for you.
+    Fewer than two sentences with words gives zero. style_signal flips the
+    direction so that more variation gives a lower AI-looking score.
     """
-    # TODO: replace this
-    return 0.0
+    lengths = [len(words(sentence)) for sentence in sentences(text)]
+    lengths = [length for length in lengths if length]
+    if len(lengths) < 2:
+        return 0.0
+    return statistics.pstdev(lengths) / statistics.mean(lengths)
 
 
 def type_token_ratio(text: str) -> float:
     """
-    Unique words over total words. ← TODO
+    Unique lowercase words over total words; zero for wordless text.
 
     Returns:
         A float between 0 and 1. Higher means more varied vocabulary.
@@ -80,50 +74,37 @@ def type_token_ratio(text: str) -> float:
     directly comparable on it, and if your test inputs vary a lot in length,
     that alone can look like a signal.
     """
-    # TODO: replace this
-    return 0.0
+    tokens = words(text)
+    return len(set(tokens)) / len(tokens) if tokens else 0.0
 
 
 def punctuation_density(text: str) -> float:
     """
-    How much punctuation, relative to length. ← TODO
+    Unicode punctuation characters divided by total text characters.
 
-    Returns:
-        A float. Whether you count all punctuation or only some kinds — commas,
-        semicolons, dashes — is a real choice. Semicolons and em dashes are
-        more interesting than full stops, because they vary more between
-        writers.
+    Return zero for empty input; count every Unicode punctuation category.
     """
-    # TODO: replace this
-    return 0.0
+    if not text:
+        return 0.0
+    return sum(unicodedata.category(char).startswith("P") for char in text) / len(text)
 
 
 # ── Combining them ───────────────────────────────────────────────────────────
 
 def style_signal(text: str) -> float:
     """
-    The style signal as a 0–1 score. **Higher means more likely AI.** ← TODO
+    Mean of three aligned 0–1 features. Higher points toward AI.
 
-    Combine your three measures into one number. Same direction as
-    `detector.model_signal`, so that `scoring.combine_signals` can treat them
-    the same way — if one of your signals runs backwards, everything above it
-    is wrong in a way that's hard to see.
-
-    Two things to decide and write down:
-
-      1. Which direction each measure points. Low spread means more AI-ish, so
-         it needs flipping. Work out which of your three need that.
-      2. How to get each onto a comparable scale. A raw type-token ratio sits
-         between 0 and 1; a raw punctuation count doesn't. Adding them
-         unscaled means whichever has the bigger numbers wins by default.
-
-    Test it on the four calibration inputs from Milestone 4 — clearly AI,
-    clearly human, plain conventional human writing, lightly-edited AI — before
-    you trust it. Plain and ordinary, not formal: formal prose reads as *human*
-    to signal one, and it is plain writing that gets accused.
+    No words gives 0.5. With fewer than two sentences, only the length part
+    gets 0.5. The calculations and sample scores are in README.md.
     """
-    # TODO: replace this
-    return 0.5
+    if not words(text):
+        return 0.5
+    sentence_count = sum(bool(words(sentence)) for sentence in sentences(text))
+    spread_score = 0.5 if sentence_count < 2 else 1.0 - min(sentence_length_spread(text), 1.0)
+    repetition_score = 1.0 - type_token_ratio(text)
+    punctuation_score = 1.0 - min(punctuation_density(text) / config.STYLE_PUNCTUATION_DENSITY_CEILING, 1.0)
+    return round((spread_score + repetition_score + punctuation_score) / 3.0, 4)
 
 
 if __name__ == "__main__":
@@ -139,4 +120,3 @@ if __name__ == "__main__":
     print(f"type_token_ratio         {type_token_ratio(text)}")
     print(f"punctuation_density      {punctuation_density(text)}")
     print(f"style_signal             {style_signal(text)}   (higher = more likely AI)")
-    print("\nAll zeros? These are stubs — Milestone 4 is where you build them.")

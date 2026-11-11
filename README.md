@@ -127,6 +127,14 @@ Human writers could write "AI-like" by writing in a plain and structured way. Ha
 
 How much sentence length varies, unique words divided by total words, and punctuation density. These measure text shape, without understanding its meaning.
 
+| Measure | Calculation for its 0–1 AI-looking score |
+|---|---|
+| Sentence-length spread | How much sentence lengths vary compared to their average: `spread = pstdev(lengths) / mean(lengths)`, then `1 - min(spread, 1)`. Even lengths give a higher score. |
+| Type-token ratio | `ratio = unique words / total words`, then `1 - ratio`. More repeated words give a higher score. The word matching uses lowercase English letters, digits, and apostrophes. |
+| Punctuation density | Punctuation marks (including marks such as `—`) divided by all characters, then `1 - min(density / 0.08, 1)`. Less punctuation gives a higher score; `0.08` is 8 marks per 100 characters. |
+
+The style score is the average of these 3 scores. With fewer than 2 sentences containing words, the sentence-length part gets `0.5`; with no words, the whole style score gets `0.5`. `/submit` already rejects empty text, but the style function can also be run on its own. One issue with the vocabulary ratio: longer text tends to repeat more words, which can look AI-like just because of length. The `0.08` punctuation limit is a setting I chose, not something the model learned.
+
 **Why that might differ between human and AI writing:**
 
 According to `stylometry.py`, AI tends to write with less variety in vocabulary and similar sentence lengths. The suggested reason is the way models are trained: to predict the next word.
@@ -142,7 +150,13 @@ A human can write sentences of even length or use a smaller vocabulary range, ou
 
 **The rule:**
 
+Use both `model_score` and `style_score`, with a weight of `0.5` each. If one is `0.9` and the other is `0.1`, that gives a combined score of `0.5`. I want a disagreement like that to land in the unsure band, rather than letting one signal make the call.
+
 **The numbers:**
+
+`WEIGHT_MODEL_SIGNAL = 0.5` and `WEIGHT_STYLE_SIGNAL = 0.5` in `config.py`. Calculate `(0.5 * model_score + 0.5 * style_score) / (0.5 + 0.5)` and round to 4 decimal places. The function checks that both scores are finite and within 0–1, and divides by the total weight (so changing the weights still gives an average). `STYLE_PUNCTUATION_DENSITY_CEILING = 0.08` sets the punctuation scale.
+
+The rule was written before coding it, and kept the same after seeing the scores. Final labels and thresholds are still unfinished.
 
 **Where it lives:** `scoring.py::combine_signals`
 
@@ -150,6 +164,21 @@ A human can write sentences of even length or use a smaller vocabulary range, ou
      somewhere else, say where. -->
 
 **Where the signals disagree:**
+
+The edited draft gets `0.4579` from the model and `0.5503` from style. One is below `0.5`, the other above it, and the combined score is `0.5041`.
+
+Scores for the same 3 texts, plus formal human writing, lightly edited AI, and plain human writing:
+
+| Sample | Model score | Style score | Combined score |
+|---|---:|---:|---:|
+| `ai_original` | 0.8095 | 0.6113 | 0.7104 |
+| `human_original` | 0.2236 | 0.4597 | 0.3417 |
+| `mixed_edit` | 0.4579 | 0.5503 | 0.5041 |
+| `formal_human` | 0.6893 | 0.5740 | 0.6317 |
+| `ai_light_edit` | 0.7248 | 0.5999 | 0.6623 |
+| `plain_human` | 0.2273 | 0.4665 | 0.3469 |
+
+The generated text and my original draft are `0.3687` apart. Style changes less across these examples (`0.4597`–`0.6113`) than the model score does (`0.2236`–`0.8095`). The formal human text gets `0.6317`, quite a bit higher than my draft's `0.3417`, even though both are human.
 
 
 
@@ -179,7 +208,7 @@ A human can write sentences of even length or use a smaller vocabulary range, ou
 
 ## Sample Run
 
-The first `/submit` check used a made-up ID (`transport-placeholder`) and `0.5` for the scores. After that, the real model score was connected and logged. At this stage, style and confidence are still set to `0.5`, and the label is a placeholder.
+The first `/submit` check used a made-up ID (`transport-placeholder`) and `0.5` for the scores. After that, the real model score was connected and logged. That first saved decision is in `logs/audit.jsonl` as `score_stage: "model_only"`, with confidence and style still set to `0.5`.
 
 Running the detector by itself gave:
 
@@ -189,22 +218,24 @@ Running the detector by itself gave:
 | `human_original` | 97.9545 | 0.2236 |
 | `mixed_edit` | 50.0051 | 0.4579 |
 
-**A submission — milestone 3**
+**A submission — milestone 4**
+
+Both signals and confidence are connected now; `guess` and `label` are still placeholders. This sends the same JSON used for the run (on port `5057`, since `5000` was already in use).
 
 ```bash
 curl -X POST http://127.0.0.1:5057/submit \
   -H "Content-Type: application/json" \
-  -d '{"text": "Effective communication plays an important role in the success of any organization. By establishing clear goals and encouraging open dialogue, teams can work together to achieve shared objectives. A structured approach helps individuals understand their responsibilities and contribute to a positive working environment. Regular feedback provides opportunities for continuous improvement and supports the development of valuable skills. In addition, consistent communication helps build trust and strengthens relationships among team members. Ultimately, organizations that prioritize these practices are better positioned to adapt to changing circumstances and achieve long-term success.", "creator_id": "u7_m3_ai_original"}'
+  -d '{"text": "Effective communication plays an important role in the success of any organization. By establishing clear goals and encouraging open dialogue, teams can work together to achieve shared objectives. A structured approach helps individuals understand their responsibilities and contribute to a positive working environment. Regular feedback provides opportunities for continuous improvement and supports the development of valuable skills. In addition, consistent communication helps build trust and strengthens relationships among team members. Ultimately, organizations that prioritize these practices are better positioned to adapt to changing circumstances and achieve long-term success.", "creator_id": "u7_m4_ai_original"}'
 ```
 
 ```json
 {
-  "confidence": 0.5,
-  "content_id": "c16ca7f7-9763-4fe1-b59b-d4d3af7623eb",
+  "confidence": 0.7104,
+  "content_id": "35e3505e-90e4-4a76-9e43-389d2a5ad794",
   "guess": "unsure",
   "label": "PLACEHOLDER — label mapping belongs to milestone 5.",
   "model_score": 0.8095,
-  "style_score": 0.5
+  "style_score": 0.6113
 }
 ```
 
@@ -219,20 +250,22 @@ curl "http://127.0.0.1:5057/log?limit=1"
   "count": 1,
   "entries": [
     {
-      "combined_score": 0.5,
-      "content_id": "c16ca7f7-9763-4fe1-b59b-d4d3af7623eb",
-      "creator_id": "u7_m3_ai_original",
+      "combined_score": 0.7104,
+      "content_id": "35e3505e-90e4-4a76-9e43-389d2a5ad794",
+      "creator_id": "u7_m4_ai_original",
       "guess": "unsure",
       "label": "PLACEHOLDER — label mapping belongs to milestone 5.",
       "model_score": 0.8095,
-      "score_stage": "model_only",
+      "score_stage": "combined_label_pending",
       "status": "decided",
-      "style_score": 0.5,
-      "timestamp": "2026-11-11T05:53:06+00:00"
+      "style_score": 0.6113,
+      "timestamp": "2026-11-11T05:56:13+00:00"
     }
   ]
 }
 ```
+
+The 6 texts also went through `/submit`, and the returned scores and IDs matched the log. Their decisions are saved after the milestone 3 decision in `logs/audit.jsonl`.
 
 **An appeal**
 
@@ -263,6 +296,32 @@ My draft after the earlier AI rewrite (mixed authorship).
 
 ```text
 According to detector.py, AI-generated text tends to follow predictable patterns, where the next word or token is likely given the words before it. Human writing can be less predictable, but humans do not always write that way. Human writers can write in an AI-looking way by using plain, structured language. The signal cannot tell whether that predictability came from a person or an AI. I can see how this could hurt people who trained or studied to make their writing clearer and well structured.
+```
+
+**formal_human — formal human**
+
+An excerpt from Lincoln's Gettysburg Address (1863), taken from the Library of Congress transcription. The model may have seen this well-known wording during training.
+
+[Source transcription](https://www.loc.gov/exhibits/gettysburg-address/ext/trans-nicolay-inscribed.html)
+
+```text
+Fourscore and seven years ago our fathers brought forth on this continent a new nation, conceived in liberty and dedicated to the proposition that all men are created equal. Now we are engaged in a great civil war, testing whether that nation or any nation so conceived and so dedicated can long endure. We are met on a great battlefield of that war. We have come to dedicate a portion of that field as a final resting-place for those who here gave their lives that that nation might live. It is altogether fitting and proper that we should do this. But in a larger sense, we cannot dedicate, we cannot consecrate, we cannot hallow this ground.
+```
+
+**ai_light_edit — lightly edited AI**
+
+`ai_original` with 3 edits: "plays an important role" to "matters", "Ultimately" to "In the end", and "long-term success" to "lasting success" (also edited by Codex).
+
+```text
+Effective communication matters in the success of any organization. By establishing clear goals and encouraging open dialogue, teams can work together to achieve shared objectives. A structured approach helps individuals understand their responsibilities and contribute to a positive working environment. Regular feedback provides opportunities for continuous improvement and supports the development of valuable skills. In addition, consistent communication helps build trust and strengthens relationships among team members. In the end, organizations that prioritize these practices are better positioned to adapt to changing circumstances and achieve lasting success.
+```
+
+**plain_human — plain human**
+
+An unedited part of my original draft (also included in `human_original`).
+
+```text
+Human writers could write "AI-like" by writing in a plain and structured way. Having structure and straightforwardness is correlated with sounding like an AI. P.S., I can see how this would hurt people who trained or studied to make their writer cleaner and well structured.
 ```
 
 </details>

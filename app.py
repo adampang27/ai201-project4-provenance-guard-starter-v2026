@@ -31,6 +31,8 @@ from flask import Flask, jsonify, request
 import audit
 import config
 import detector
+import scoring
+import stylometry
 
 app = Flask(__name__)
 
@@ -155,8 +157,8 @@ def health():
 # @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
     """
-    Take a piece of text, decide about it, log the decision, answer.
-    ← TODO — Milestones 3, 4 and 5
+    Validate text, run both signals, combine, log, and answer.
+    Milestones 3–4 are connected; final labels remain milestone 5 work.
 
     Expects JSON:
         {"text": "...", "creator_id": "..."}
@@ -225,10 +227,11 @@ def submit():
         return jsonify(error="invalid_text", message="The detector needs at least 3 tokens to score the text."), 400
 
     content_id = str(uuid.uuid4())
-    # Milestone 3: transport, real first signal, persistence. Later stages follow.
-    guess, confidence = "unsure", 0.5
+    style_score = stylometry.style_signal(text)
+    confidence = scoring.combine_signals(model_score, style_score)
+    # Milestone 5 will connect score_to_label and replace the label text.
+    guess = "unsure"
     label = "PLACEHOLDER — label mapping belongs to milestone 5."
-    style_score = 0.5
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id,
@@ -237,7 +240,7 @@ def submit():
         style_score=style_score,
         combined_score=confidence,
         label=label,
-        score_stage="model_only",
+        score_stage="combined_label_pending",
     )
     return jsonify({
         "content_id": content_id,
