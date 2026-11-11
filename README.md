@@ -49,44 +49,53 @@ Planned workflow:
 6. Use `combined_score` to return a guess and label, with `unsure` as a possibility, in `scoring.score_to_label`. Use the combined score for `confidence`, then log the submission with `audit.log_decision`.
 7. Return JSON with an associated `content_id`, a `guess` of AI, human, or unsure, a `confidence` value, a `label`, a `model_score`, and a `style_score`.
 
-### A human writer gets called AI
+### False positive
 
-Suppose someone writes an academic paragraph themselves, using a smaller vocabulary and sentences of even length. They get a combined score of `0.82` and a label saying, "This looks AI-generated. If you wrote it, you can request a review." Those numbers and words are a hypothetical example, not a measured result or the final label.
+For example, I submit plain, structured writing and get a score of `0.82`, with the label "This looks AI-generated. If you wrote it, you can request a review." (Hypothetical score and label.)
 
-The writer sends their `content_id` and reasoning to `/appeal`. The service checks that the submission exists, then records an `under_review` event beside the original decision. It confirms the request. It does not automatically change the score or arrange a staffed review. That is why a label should not promise more than the service actually does.
+I would send the `content_id` and my reasoning to `/appeal`. It checks the ID and adds my appeal to the log as `under_review`, keeping the original decision. The confirmation means the appeal was saved (someone would still have to review it; the score does not change automatically).
 
-### What the endpoints take in and return
+### Endpoint contracts
 
-These are the contracts I plan to build against. `/appeal` and the final labels belong to milestone 5.
+Both routes take a JSON object with `Content-Type: application/json`.
 
 **`POST /submit`**
 
 | Request field | What it means |
 |---|---|
-| `text` | A string containing the writing. At least 3 whitespace-separated words, at most 12,000 characters including surrounding whitespace. Whitespace-only text is empty. |
-| `creator_id` | A nonempty string identifying the writer, at most 128 characters after trimming surrounding whitespace. |
+| `text` | The writing as a string. At least 3 words (split on whitespace), at most 12,000 characters before trimming. Spaces alone count as empty. |
+| `creator_id` | The writer's ID as a nonempty string, at most 128 characters after trimming. |
 
-The body must be a JSON object sent with `Content-Type: application/json`. Extra fields are ignored. Text is trimmed before scoring. The detector reads at most 400 tokens; the style signal will read the full accepted text, so the two scores may cover different amounts of writing.
+`/submit` trims `text` and `creator_id`, and ignores extra fields. The model only scores the first 400 tokens, while the style signal uses the whole accepted text.
 
 | Response field | What it means |
 |---|---|
-| `content_id` | A generated UUID string for this submission and any later appeal. |
-| `guess` | `ai`, `human`, or `unsure` once label mapping is connected. |
-| `confidence` | The combined 0–1 score, where higher points toward AI. It is not a probability of authorship or confidence in whichever guess won. |
-| `label` | The sentence shown to the writer. |
-| `model_score` | The detector's 0–1 predictability score, with higher pointing toward AI. |
-| `style_score` | The 0–1 text-shape score, with higher pointing toward AI. |
+| `content_id` | A generated UUID string to identify the submission and its later appeal. |
+| `guess` | `ai`, `human`, or `unsure` after label mapping is connected. |
+| `confidence` | The combined 0–1 AI-looking score (not a probability or confidence in whichever guess won). |
+| `label` | The wording shown to the writer. |
+| `model_score` | The 0–1 predictability score, higher meaning more AI-looking. |
+| `style_score` | The 0–1 text-shape score, higher meaning more AI-looking. |
 
-A successful submission returns `200` and writes a decision through `audit.log_decision`. Missing fields, a non-object body, wrong types, empty strings, and too-short text return `400`. Excessive text or an excessive creator ID returns `413`. A model-loading failure returns `503`. Errors return an `error` code and a readable `message`; input errors are checked before model inference. A rejected input does not create a decision entry.
+| Status | When it returns |
+|---|---|
+| `200` | Valid submission, with the decision saved through `audit.log_decision`. |
+| `400` | Missing fields, wrong types, empty values, fewer than 3 words/tokens, or JSON that is not an object. |
+| `413` | `text` or `creator_id` exceeds its character limit. |
+| `503` | The model could not be loaded. |
 
-**`POST /appeal` — planned for milestone 5**
+Input checks happen before calling the model, apart from its own token-count check. Errors come back with `error` and `message`; rejected input is not logged as a decision.
+
+**`POST /appeal` (not implemented yet)**
 
 | Request field | What it means |
 |---|---|
-| `content_id` | The nonempty string returned by a real submission. |
-| `reasoning` | The writer's explanation: a nonempty string, at most 4,000 characters. |
+| `content_id` | A nonempty string identifying an existing submission. |
+| `reasoning` | Why the writer is appealing: a nonempty string, at most 4,000 characters. |
 
-The body must be a JSON object. Missing fields, wrong types, or empty strings return `400`; excessive reasoning returns `413`; an unknown ID returns `404`. A successful request returns `200` with `content_id`, `status: "under_review"`, and a confirmation `message`. It appends an appeal event using the creator from the original decision. The original decision stays in the log, and no automatic reclassification is promised.
+Look up the submission's creator using `content_id`, then add the appeal to the log alongside the old decision. Return `200` with the same `content_id`, `status: "under_review"`, and a confirmation `message`.
+
+For invalid requests: `400` for missing fields, wrong types, empty values, or a body that is not a JSON object; `413` for reasoning over 4,000 characters; `404` if the ID does not exist. The original decision and score stay as they were.
 
 ---
 
@@ -140,7 +149,7 @@ A human can write sentences of even length or use a smaller vocabulary range, ou
 <!-- ⚠️ The grader checks your code against that line. If your rule lives
      somewhere else, say where. -->
 
-**A case where my two signals split, and what my rule does with it:**
+**Where the signals disagree:**
 
 
 

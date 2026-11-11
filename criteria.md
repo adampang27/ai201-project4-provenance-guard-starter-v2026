@@ -5,6 +5,8 @@ Five criteria that say what "working" means for this service, written in unit 7
 
 **All five are yours.** None are given.
 
+Targets set before the milestone 3–4 runs (the setup sample had already returned perplexity `12.5` and model score `0.8864`).
+
 An acceptance criterion names a number or something plainly observable. *"The
 detector is accurate"* is an opinion — and perfect AI detection isn't possible
 anyway, so it's an opinion about something nobody can deliver. *"Of 10 pieces I
@@ -42,62 +44,74 @@ Two things worth knowing before you pick numbers:
   a **miss**.
 
 ---
-## 1.
+## 1. None of my 8 pieces get called AI
 
 <!-- Your criterion. It must name a number. -->
 
+Use the same 8 unedited pieces of my own writing in all 3 Unit 8 trials, including plain and formal writing. None should get `guess: "ai"` (`unsure` is okay). Save where each piece came from with the inputs.
 
 
 **Why this target:**
 
+I can see how this would hurt someone who trained to make their writing cleaner and well structured. So I am allowing unsure, but no AI accusations in these 8 pieces. Eight gives me a small set to work through with different styles of my own writing.
 
 
 ---
 
-## 2.
+## 2. AI and human median scores differ by at least 0.20
 
 <!-- Your criterion. -->
 
+Choose 4 clearly AI-generated pieces and 4 unedited pieces I wrote myself before the Unit 8 trials. Keep those texts the same for all 3 trials. Each time, the AI group's median `confidence` minus the human group's median should be at least `0.20`, with every score finite and within 0–1.
 
 
 **Why this target:**
 
+I want a noticeable gap between the groups, while still allowing individual pieces to overlap. Keeping the texts fixed also means I can't make the result look better by changing the examples.
 
 
 ---
 
-## 3.
+## 3. Reach all 3 labels
 
 <!-- Your criterion. -->
 
+Choose 6 valid submissions before the Unit 8 trials and use them in all 3. Each trial should return at least one `human`, one `unsure`, and one `ai`, with readable, nonempty labels. Also call `scoring.score_to_label` with `0.51` and `0.95`; those should give different labels. Calling the function directly does not count toward the 6 submissions.
 
 
 **Why this target:**
 
+I want all 3 options to be possible through `/submit`, including unsure. A `0.51` and a `0.95` should also say different things to the writer, given how different those scores are. This needs the final labels connected in milestone 5.
 
 
 ---
 
-## 4.
+## 4. Appeals are saved alongside the original decision
 
 <!-- Your criterion. -->
 
+In each trial, make 3 valid submissions and appeal each `content_id` once. All 3 appeals should return `200`, the same ID, and `status: "under_review"`. Each should add exactly one matching appeal event to `/log`, keeping the original decision and its scores as they were. Also appeal an ID that does not exist: that should return `404` and add no appeal event. Save these requests and log entries manually (the evaluation runner does not send appeals).
 
 
 **Why this target:**
 
+If I appeal and only get a confirmation back, I can't tell whether the appeal was saved. The log needs my reasoning alongside the original decision so someone can look at both. This checks the record of the appeal; someone still has to do the review.
 
 
 ---
 
-## 5.
+## 5. Reject 12 bad inputs before running the model
 
 <!-- Your criterion. -->
 
+In each trial, send these 12 `/submit` bodies: missing `text`, empty text, spaces alone, `text: null`, numeric text, text as a list, a list instead of a JSON object, missing `creator_id`, numeric `creator_id`, spaces alone for `creator_id`, two-word text, and text with 12,001 characters. For the text-only cases, include a valid creator ID.
+
+The first 11 should return `400`, and the 12,001-character text should return `413`. All 12 should return JSON with `error` and `message`, without calling `model_signal` or adding a decision to the log.
 
 
 **Why this target:**
 
+I don't want to load the model just to find out the request is missing text. Reject the bad input and say what needs fixing.
 
 
 ---
