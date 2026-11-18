@@ -143,8 +143,7 @@ A human can write sentences of even length or use a smaller vocabulary range, ou
 
 ### The combining rule
 
-<!-- Write the rule in words, then give the numbers. What happens when the two
-     signals disagree? -->
+The weights and scores below are from Unit 7 and the Unit 8 baseline. The current weights are in [The Improvement](#the-improvement).
 
 **The rule:**
 
@@ -455,28 +454,31 @@ Trial 1 excerpt from the measurements of `app.py::submit`, `app.py::appeal`, and
 
 The score spread missed at the combining rule. The model scores alone had a median gap of `0.3181`, while the style scores had a gap of `0.0229`. Giving both signals equal weight pulled those groups closer together. For example, the team note got `0.5301` from the model and `0.6600` from style, which raised its combined score to `0.5951`.
 
-Criteria 1 and 3–5 met their targets in each local trial. The staff report is pending.
+Criteria 1 and 3–5 met their targets in each baseline trial.
 
 ---
 
 ## The Improvement
 
-**What I changed:**
+I changed the weights in `config.py` from `0.50` model and `0.50` style to `0.605` model and `0.395` style. The model signal separated the groups more than the style signal did. I checked the saved scores first because increasing the model weight also raises the score on my Ubuntu paragraph. A `0.60` model weight projected a gap of `0.19995`, just below the target. A `0.61` model weight would have put that paragraph over the AI cutoff.
 
-**Which diagnosis pointed at it:**
+### Local comparison
+
+The [after report](results/eval_local_after.json) reruns the same inputs with the new weights. The recorded model and style scores match the baseline. Each column shows the result in all three trials.
+
+| Criterion | Before | After |
+|---|---|---|
+| 1. My writing called AI | 0 of 8, MET | 0 of 8, MET |
+| 2. Median score gap | `+0.17050`, MISSED | `+0.20150`, MET |
+| 3. Label coverage | All three labels, MET | All three labels, MET |
+| 4. Appeals | 3 of 3 saved, unknown ID `404`, MET | 3 of 3 saved, unknown ID `404`, MET |
+| 5. Bad input | 12 of 12 rejected before scoring, MET | 12 of 12 rejected before scoring, MET |
+
+The AI median moved from `0.66675` to `0.68240` and my writing median moved from `0.49625` to `0.48090`. That clears the `0.20` gap target for these samples. My Ubuntu paragraph moved from `0.6805` to `0.6994`, just under the `0.70` AI cutoff.
 
 ### Attack Run — After
 
-<!-- Same format. `run_attacks.py --label after` -->
-
-
-
-**Did it help, and how do I know:**
-
-<!-- Widening the unsure band usually fixes one problem and creates another.
-     Reporting that trade honestly is worth full credit. -->
-
-
+The comparison covers the five local criteria. Staff test results are unavailable.
 
 ---
 

@@ -48,7 +48,7 @@ def combine_signals(model_score: float, style_score: float) -> float:
       - Milestone 4 asks you to find a case where your two signals split and
         write it down. That case is what this rule exists to handle.
 
-    The chosen equal-weight mean is documented in README.md.
+    The baseline and current weights are documented in README.md.
     """
     if any(not math.isfinite(score) or not 0.0 <= score <= 1.0 for score in (model_score, style_score)):
         raise ValueError("Signal scores must be finite numbers from 0 to 1.")

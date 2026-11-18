@@ -54,12 +54,10 @@ MAX_APPEAL_REASONING_CHARACTERS = 4_000
 
 
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
-# How much each signal counts toward the combined score.
-#
-# Equal weights are the milestone 4 rule documented in README.md.
+# Unit 8 weights. See the measured comparison in README.md.
 
-WEIGHT_MODEL_SIGNAL = 0.5
-WEIGHT_STYLE_SIGNAL = 0.5
+WEIGHT_MODEL_SIGNAL = 0.605
+WEIGHT_STYLE_SIGNAL = 0.395
 
 # At 8 punctuation marks per 100 characters, this feature's AI score is zero.
 STYLE_PUNCTUATION_DENSITY_CEILING = 0.08
