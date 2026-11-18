@@ -18,8 +18,8 @@ doesn't, it's the service itself.
 Routes:
 
     POST /ping        the worked example. Already works. Don't edit it
-    POST /submit      ← YOU BUILD THIS (Milestone 3, 4, 5)
-    POST /appeal      ← YOU BUILD THIS (Milestone 5)
+    POST /submit      score and label a submission
+    POST /appeal      record a request to review a submission
     GET  /log         the audit log. Already works
     GET  /health      is the service up, and is the model loaded
 """
@@ -158,7 +158,6 @@ def health():
 def submit():
     """
     Validate text, run both signals, combine, log, and answer.
-    Milestones 3–4 are connected; final labels remain milestone 5 work.
 
     Expects JSON:
         {"text": "...", "creator_id": "..."}
@@ -229,9 +228,7 @@ def submit():
     content_id = str(uuid.uuid4())
     style_score = stylometry.style_signal(text)
     confidence = scoring.combine_signals(model_score, style_score)
-    # Milestone 5 will connect score_to_label and replace the label text.
-    guess = "unsure"
-    label = "PLACEHOLDER — label mapping belongs to milestone 5."
+    guess, label = scoring.score_to_label(confidence)
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id,
@@ -240,7 +237,6 @@ def submit():
         style_score=style_score,
         combined_score=confidence,
         label=label,
-        score_stage="combined_label_pending",
     )
     return jsonify({
         "content_id": content_id,
@@ -254,32 +250,27 @@ def submit():
 
 @app.post("/appeal")
 def appeal():
-    """
-    A writer says you got it wrong. ← TODO — Milestone 5
+    """Record the writer's reasoning for an existing submission."""
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(error="invalid_body", message="Send a JSON object with content_id and reasoning."), 400
 
-    Expects JSON:
-        {"content_id": "...", "reasoning": "..."}
+    content_id = payload.get("content_id")
+    reasoning = payload.get("reasoning")
+    if not isinstance(content_id, str) or not content_id.strip():
+        return jsonify(error="invalid_content_id", message="content_id must be a nonempty string."), 400
+    if not isinstance(reasoning, str) or not reasoning.strip():
+        return jsonify(error="invalid_reasoning", message="reasoning must be a nonempty string."), 400
+    if len(reasoning) > config.MAX_APPEAL_REASONING_CHARACTERS:
+        return jsonify(error="reasoning_too_large", message="reasoning must be at most 4,000 characters."), 413
 
-    Should:
-      1. Check the content_id actually exists — `audit.entries_for(id)` tells
-         you. A typo here fails silently and looks like a broken endpoint,
-         which is the single most common way this milestone eats an hour.
-      2. Record the appeal with `audit.log_appeal(...)`, which moves the item
-         to `under_review`.
-      3. Confirm to the writer. No automatic re-checking needed.
+    content_id = content_id.strip()
+    decision = next((entry for entry in audit.entries_for(content_id) if entry.get("status") == "decided"), None)
+    if decision is None:
+        return jsonify(error="content_not_found", message="No saved decision matches that content_id."), 404
 
-    This is the smallest endpoint in the project and the one that matters most
-    to the person on the other end. It's the only thing standing between a
-    wrong accusation and nothing at all.
-    """
-    payload = request.get_json(silent=True) or {}
-
-    # TODO: delete this and build the route.
-    return jsonify({
-        "error": "not_implemented",
-        "message": "POST /appeal isn't built yet — see the TODO in app.py.",
-        "you_sent": payload,
-    }), 501
+    event = audit.log_appeal(content_id, decision["creator_id"], reasoning.strip())
+    return jsonify(content_id=content_id, status=event["status"], message="Your appeal was saved for review.")
 
 
 # ── Already works ─────────────────────────────────────────────────────────────

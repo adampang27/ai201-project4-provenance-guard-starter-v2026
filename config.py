@@ -50,6 +50,7 @@ DETECTOR_MAX_TOKENS = 400
 MIN_TEXT_WORDS = 3
 MAX_TEXT_CHARACTERS = 12_000
 MAX_CREATOR_ID_CHARACTERS = 128
+MAX_APPEAL_REASONING_CHARACTERS = 4_000
 
 
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
@@ -68,9 +69,9 @@ STYLE_PUNCTUATION_DENSITY_CEILING = 0.08
 # Where one label becomes another. Scores run 0.0 (confidently human) to 1.0
 # (confidently AI).
 #
-#   score < HUMAN_THRESHOLD          -> high-confidence human
+#   score <= HUMAN_THRESHOLD         -> high-confidence human
 #   between the two                  -> unsure
-#   score > AI_THRESHOLD             -> high-confidence AI
+#   score >= AI_THRESHOLD            -> high-confidence AI
 #
 # ⚠️ This is where your false-positive decision from Milestone 1 actually gets
 # made. Widening the unsure band means fewer wrong accusations and more AI text
@@ -78,7 +79,7 @@ STYLE_PUNCTUATION_DENSITY_CEILING = 0.08
 # that decide who pays for it.
 
 HUMAN_THRESHOLD = 0.35
-AI_THRESHOLD = 0.65
+AI_THRESHOLD = 0.70
 
 # ⚠️ One thing that catches people out in Milestone 5. A weighted average can
 # only land between its two inputs — so while `style_signal` is still the stub
