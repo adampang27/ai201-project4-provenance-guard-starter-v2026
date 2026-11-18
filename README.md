@@ -39,21 +39,19 @@
 <!-- The path a submission takes, from arriving to the label a reader sees.
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
 
-Planned workflow:
-
-1. The entire `submit()` workflow takes in `text` and `creator_id`, and pulls them out of the payload.
+1. `submit()` pulls `text` and `creator_id` out of the payload and checks them before scoring.
 2. `detector.model_signal` takes in the text and uses `detector.perplexity` to generate a value for "how surprised the model is by the text." It returns a 0–1 score for how AI-like it looks (`model_score`).
 3. Create an associated `content_id`.
-4. Create an AI-style 0–1 score using 3 measures (how much sentence length varies, unique words divided by total words, and punctuation density). This is outputted by `style_signal`.
+4. `style_signal` gives a 0–1 score using 3 measures (how much sentence length varies, unique words divided by total words, and punctuation density).
 5. Use both `model_score` (predictability) and `style_score` (text shape) in `scoring.combine_signals`.
-6. Use `combined_score` to return a guess and label, with `unsure` as a possibility, in `scoring.score_to_label`. Use the combined score for `confidence`, then log the submission with `audit.log_decision`.
-7. Return JSON with an associated `content_id`, a `guess` of AI, human, or unsure, a `confidence` value, a `label`, a `model_score`, and a `style_score`.
+6. Pass the combined score to `scoring.score_to_label` for the guess and label, with `unsure` as a possibility. Use the combined score for `confidence`, then log the submission with `audit.log_decision`.
+7. Return JSON with the `content_id`, a `guess` of `ai`, `human`, or `unsure`, the `confidence`, the `label`, the `model_score`, and the `style_score`.
 
 ### False positive
 
-For example, I submit plain, structured writing and get a score of `0.82`, with the label "This looks AI-generated. If you wrote it, you can request a review." (Hypothetical score and label.)
+For example, I submit plain, structured writing and get a score of `0.82` (hypothetical), with the label "This looks AI-generated. If you wrote it, you can request a review."
 
-I would send the `content_id` and my reasoning to `/appeal`. It checks the ID and adds my appeal to the log as `under_review`, keeping the original decision. The confirmation means the appeal was saved (someone would still have to review it; the score does not change automatically).
+I would send the `content_id` and my reasoning to `/appeal`. It checks the ID and adds my appeal to the log as `under_review`, keeping the original decision. The confirmation means the appeal was saved (someone would still have to review it, and the score doesn't change automatically).
 
 ### Endpoint contracts
 
@@ -71,7 +69,7 @@ Both routes take a JSON object with `Content-Type: application/json`.
 | Response field | What it means |
 |---|---|
 | `content_id` | A generated UUID string to identify the submission and its later appeal. |
-| `guess` | `ai`, `human`, or `unsure` after label mapping is connected. |
+| `guess` | `ai`, `human`, or `unsure`. |
 | `confidence` | The combined 0–1 AI-looking score (not a probability or confidence in whichever guess won). |
 | `label` | The wording shown to the writer. |
 | `model_score` | The 0–1 predictability score, higher meaning more AI-looking. |
@@ -86,16 +84,16 @@ Both routes take a JSON object with `Content-Type: application/json`.
 
 Input checks happen before calling the model, apart from its own token-count check. Errors come back with `error` and `message`; rejected input is not logged as a decision.
 
-**`POST /appeal` (not implemented yet)**
+**`POST /appeal`**
 
 | Request field | What it means |
 |---|---|
 | `content_id` | A nonempty string identifying an existing submission. |
-| `reasoning` | Why the writer is appealing: a nonempty string, at most 4,000 characters. |
+| `reasoning` | Why the writer is appealing, as a nonempty string of at most 4,000 characters before trimming. |
 
 Look up the submission's creator using `content_id`, then add the appeal to the log alongside the old decision. Return `200` with the same `content_id`, `status: "under_review"`, and a confirmation `message`.
 
-For invalid requests: `400` for missing fields, wrong types, empty values, or a body that is not a JSON object; `413` for reasoning over 4,000 characters; `404` if the ID does not exist. The original decision and score stay as they were.
+Missing fields, wrong types, empty values, or a body that isn't a JSON object return `400`. Reasoning over 4,000 characters returns `413`, and an unknown ID returns `404`. The original decision and score stay as they were.
 
 ---
 
@@ -115,11 +113,11 @@ How surprised the model is by the text, using perplexity. `model_signal` turns t
 
 **Why that might differ between human and AI writing:**
 
-According to `detector.py`, AI writers tend to write in a straightforward, linear style, where the next word or token is likely to follow the words coming before. Human writing can be less predictable.
+According to `detector.py`, AI-generated text tends to be more predictable, with the next word or token easier to guess from the words that come before it. Human writing can be less predictable.
 
 **What it can't see:**
 
-Human writers could write "AI-like" by writing in a plain and structured way. Having structure and straightforwardness can make human writing sound like AI to this signal. P.S. I can see how this would hurt people who trained or studied to make their writing cleaner and well structured.
+Human writers could sound "AI-like" by writing in a plain and structured way. Structure and straightforwardness can make writing more predictable to the model. P.S. I can see how this would hurt people who trained or studied to make their writing cleaner and well structured.
 
 ### Signal two — the style signal
 
@@ -156,7 +154,7 @@ Use both `model_score` and `style_score`, with a weight of `0.5` each. If one is
 
 `WEIGHT_MODEL_SIGNAL = 0.5` and `WEIGHT_STYLE_SIGNAL = 0.5` in `config.py`. Calculate `(0.5 * model_score + 0.5 * style_score) / (0.5 + 0.5)` and round to 4 decimal places. The function checks that both scores are finite and within 0–1, and divides by the total weight (so changing the weights still gives an average). `STYLE_PUNCTUATION_DENSITY_CEILING = 0.08` sets the punctuation scale.
 
-The rule was written before coding it, and kept the same after seeing the scores. Final labels and thresholds are still unfinished.
+The rule was written before coding it and kept the same after seeing the scores.
 
 **Where it lives:** `scoring.py::combine_signals`
 
@@ -358,15 +356,11 @@ Human writers could write "AI-like" by writing in a plain and structured way. Ha
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+I asked Codex to clean up my explanation of the two signals. It rewrote more of it than I wanted. I asked it to go back to my original wording and keep my example about people who learned to write more clearly.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+I asked Codex to finish the labels and appeal route. It connected the labels, raised the AI cutoff to `0.70`, and checked that an appeal showed up in the log with the same ID. For the write-up, I asked it to start from my original draft and keep the edits local.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
