@@ -404,40 +404,52 @@ whose work got caught by it:
 
 ## Run Log and Verdicts
 
-<!-- Your five criteria across three trials. `run_eval.py --label before`. -->
+[Three local trials](results/eval_local_before.json) used the real model and the fixed inputs in [scenarios.py](scenarios.py). Each trial started with empty rate-limit counters. The audit log kept all three trials.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. My own writing | 0 of 8 called AI | 0 of 1 | 0 of 1 | 0 of 1 | Pending 7 original pieces |
+| 2. Score spread | AI median at least 0.20 higher | AI median 0.66675 | AI median 0.66675 | AI median 0.66675 | Pending 3 original pieces for the human group |
+| 3. Label coverage | All three labels in 6 submissions, with different labels at 0.51 and 0.95 | All three, different at both scores | All three, different at both scores | All three, different at both scores | MET |
+| 4. Appeals | 3 saved appeals, same IDs, unknown ID returns 404 | 3 of 3, unknown 404 | 3 of 3, unknown 404 | 3 of 3, unknown 404 | MET |
+| 5. Bad input | Eleven 400s and one 413, all with JSON errors and zero model calls or decisions | 12 of 12 | 12 of 12 | 12 of 12 | MET |
 
-**Real output from one trial**, pasted as text, naming the file and function
-that produced it:
+The eight plain and formal samples are synthetic. They returned zero AI labels in each trial, and their median score was 0.4894. The first two criteria call for unedited writing of my own, so the synthetic samples stay outside those verdicts.
+
+Trial 1 excerpt from the measurements of `app.py::submit`, `app.py::appeal`, and `scoring.py::score_to_label`. The linked JSON includes each request result, error, and audit check.
 
 ```json
-
+{
+  "original_draft_guess": "human",
+  "synthetic_style_ai_count": 0,
+  "synthetic_style_median": 0.4894,
+  "ai_group_median": 0.66675,
+  "label_counts": {
+    "ai": 1,
+    "human": 2,
+    "unsure": 3
+  },
+  "appeals_with_matching_event": 3,
+  "invalid_input_statuses": [
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    400,
+    413
+  ]
+}
 ```
 
 **Diagnoses**
 
-<!-- For each miss AND each broken attack: the stage and the mechanism.
-
-     Your service has five stages: the route, signal one, signal two, the
-     combining rule, and the label mapping.
-
-     Not a diagnosis:  "The evasion attacks got through."
-     A diagnosis:      "Four evasion inputs got through. All four had typos
-                        added to AI-generated text. My second signal measures
-                        word variety, and typos raise word variety — so it read
-                        them as more human. My combining rule weights that
-                        signal at 0.6, so it dragged the whole score down."
-
-     Look for a pattern. Five failures on one signal is one problem, not five. -->
-
-
+Criteria 3–5 met their targets in each local trial. Criteria 1 and 2 need the original writing samples for a verdict. The staff report is still pending.
 
 ---
 

@@ -1,70 +1,189 @@
+"""Fixed Unit 8 submission fixtures and their provenance.
+
+LABEL_SAMPLES copies the six exact Unit 7 samples saved in README.md. The
+full human_original is the verified original draft. plain_human overlaps that
+draft, formal_human is the Gettysburg Address, and mixed_edit is AI-edited.
+
+GENERATED_SAMPLES was written by Codex for Unit 8. Its plain and formal
+examples are synthetic style probes and do not count as the learner's writing
+for criteria 1 or 2.
 """
-What your test runs. ← UNIT 8, MILESTONE 3
 
-Each of your five criteria needs something run against it. A criterion about
-false positives needs your own writing. One about label coverage needs inputs
-across the score range. One about the appeal path needs a real content_id.
+LABEL_SAMPLES = {
+    "ai_original": (
+        "Effective communication plays an important role in the success of any "
+        "organization. By establishing clear goals and encouraging open dialogue, teams "
+        "can work together to achieve shared objectives. A structured approach helps "
+        "individuals understand their responsibilities and contribute to a positive "
+        "working environment. Regular feedback provides opportunities for continuous "
+        "improvement and supports the development of valuable skills. In addition, "
+        "consistent communication helps build trust and strengthens relationships among "
+        "team members. Ultimately, organizations that prioritize these practices are "
+        "better positioned to adapt to changing circumstances and achieve long-term "
+        "success."
+    ),
+    "human_original": (
+        "According to `detector.py`, ai writers tend to write in a straightforward , "
+        "linear style , where the next word or token is likely predictable or to follow "
+        "the words coming before, while humans do the opposite. Human writers could "
+        "write \"AI-like\" by writing in a plain and structured way. Having structure and "
+        "straightforwardness is correlated with sounding like an AI. P.S., I can see "
+        "how this would hurt people who trained or studied to make their writer cleaner "
+        "and well structured."
+    ),
+    "mixed_edit": (
+        "According to detector.py, AI-generated text tends to follow predictable "
+        "patterns, where the next word or token is likely given the words before it. "
+        "Human writing can be less predictable, but humans do not always write that "
+        "way. Human writers can write in an AI-looking way by using plain, structured "
+        "language. The signal cannot tell whether that predictability came from a "
+        "person or an AI. I can see how this could hurt people who trained or studied "
+        "to make their writing clearer and well structured."
+    ),
+    "formal_human": (
+        "Fourscore and seven years ago our fathers brought forth on this continent a "
+        "new nation, conceived in liberty and dedicated to the proposition that all men "
+        "are created equal. Now we are engaged in a great civil war, testing whether "
+        "that nation or any nation so conceived and so dedicated can long endure. We "
+        "are met on a great battlefield of that war. We have come to dedicate a portion "
+        "of that field as a final resting-place for those who here gave their lives "
+        "that that nation might live. It is altogether fitting and proper that we "
+        "should do this. But in a larger sense, we cannot dedicate, we cannot "
+        "consecrate, we cannot hallow this ground."
+    ),
+    "ai_light_edit": (
+        "Effective communication matters in the success of any organization. By "
+        "establishing clear goals and encouraging open dialogue, teams can work "
+        "together to achieve shared objectives. A structured approach helps individuals "
+        "understand their responsibilities and contribute to a positive working "
+        "environment. Regular feedback provides opportunities for continuous "
+        "improvement and supports the development of valuable skills. In addition, "
+        "consistent communication helps build trust and strengthens relationships among "
+        "team members. In the end, organizations that prioritize these practices are "
+        "better positioned to adapt to changing circumstances and achieve lasting "
+        "success."
+    ),
+    "plain_human": (
+        "Human writers could write \"AI-like\" by writing in a plain and structured way. "
+        "Having structure and straightforwardness is correlated with sounding like an "
+        "AI. P.S., I can see how this would hurt people who trained or studied to make "
+        "their writer cleaner and well structured."
+    ),
+}
 
-Working that out is Milestone 3's first step, and this file is where you write
-it down. `run_eval.py` runs everything here three times.
+GENERATED_SAMPLES = {
+    "plain_bike": (
+        "The chain came off halfway up the hill. I turned the bike over on a patch of "
+        "grass, then tucked the chain back onto the little ring. My hands smelled like "
+        "pennies all the way home. I had a napkin in my pocket, but it just stuck to "
+        "the grease."
+    ),
+    "plain_rain": (
+        "I left the washing out because the sky over the shed looked clear. By the time "
+        "I heard rain against the window, one sleeve was already dripping into the "
+        "mint. I brought the shirts inside and draped them over the backs of the "
+        "kitchen chairs."
+    ),
+    "plain_library": (
+        "The small branch library has a drawer full of pencils by the door. On Tuesday "
+        "the drawer jammed, so the librarian put a handful in an old teacup. I borrowed "
+        "one to copy a recipe and gave it back before I left."
+    ),
+    "plain_soup": (
+        "I put too much lemon in the soup and spent ten minutes trying to get it right "
+        "again. In the end I added a potato and ate it with toast. The next day the "
+        "soup tasted fine cold, straight from the mug."
+    ),
+    "formal_archive": (
+        "The cataloguing protocol assigns a stable identifier to each acquisition "
+        "before the condition report is entered. When an item changes location, staff "
+        "append the new location and date to the custody record. This policy allows a "
+        "later reviewer to reconstruct the movement of an item from the original "
+        "accession to its current shelf."
+    ),
+    "formal_water": (
+        "The survey distinguished intermittent surface flow from standing water "
+        "sustained by the shallow water table. Observations made after two days of rain "
+        "were retained in the field record. These observations were analyzed separately "
+        "because they reflected the effects of a discrete weather event."
+    ),
+    "formal_notice": (
+        "Applications received after the published deadline will be considered in the "
+        "next review period. An application is complete when the office has received "
+        "the signed form and the two supporting documents. Applicants may request a "
+        "written acknowledgment showing the date on which each document was received."
+    ),
+    "formal_transit": (
+        "The revised timetable shifts the first weekday departure seven minutes "
+        "earlier. The schedule change is intended to reduce transfer time at the "
+        "northern terminal during the morning peak. Passenger counts from the first "
+        "four weeks will be used to assess whether the adjustment improves the "
+        "connection."
+    ),
+    "ai_planning": (
+        "Good planning helps a group make steady progress on a shared task. When team "
+        "members know their roles, they can focus on the work in front of them. A "
+        "simple plan also makes it easier to review progress and decide what to do "
+        "next. Teams can update the plan as new information comes in."
+    ),
+    "ai_workspace": (
+        "A clean workspace can make daily tasks easier to manage. Put the things you "
+        "use most often within reach and store the rest in clearly marked containers. "
+        "Set aside a few minutes at the end of the day to return each item to its "
+        "place. A regular routine keeps the space ready for the next task."
+    ),
+}
 
-Two are filled in as examples. Replace them with what your criteria actually
-need — these are a shape, not a set.
+STYLE_PROBES = [text for name, text in GENERATED_SAMPLES.items() if name.startswith(("plain_", "formal_"))]
+AI_GROUP = [
+    LABEL_SAMPLES["ai_original"],
+    LABEL_SAMPLES["ai_light_edit"],
+    GENERATED_SAMPLES["ai_planning"],
+    GENERATED_SAMPLES["ai_workspace"],
+]
+APPEAL_SAMPLES = [LABEL_SAMPLES[name] for name in ("human_original", "mixed_edit", "ai_original")]
 
-A scenario carries **either** of these:
-
-    "texts"   a list of strings. Each is sent as {"text": ..., "creator_id": ...}
-              with a creator_id made up for you. Use this for most criteria.
-
-    "bodies"  a list of whole request bodies, sent exactly as written. Use this
-              when the malformed request IS the point — empty text, no `text`
-              field at all, something enormous. A bad-input criterion needs it,
-              because you cannot express "the field is missing" as a string.
-"""
+BAD_INPUTS = [
+    {"creator_id": "eval_bad_missing_text"},
+    {"creator_id": "eval_bad_empty", "text": ""},
+    {"creator_id": "eval_bad_spaces", "text": "   "},
+    {"creator_id": "eval_bad_null", "text": None},
+    {"creator_id": "eval_bad_number", "text": 42},
+    {"creator_id": "eval_bad_text_list", "text": ["one", "two", "three"]},
+    ["body", "is", "a list"],
+    {"text": "This writing has no creator ID."},
+    {"creator_id": 42, "text": "This writing has a numeric creator ID."},
+    {"creator_id": "   ", "text": "This writing has a blank creator ID."},
+    {"creator_id": "eval_bad_short", "text": "Two words"},
+    {"creator_id": "eval_bad_long", "text": "word " * 2400 + "x"},
+]
 
 SCENARIOS = [
     {
-        "name": "my own writing",
+        "name": "original draft (partial)",
         "criterion": 1,
-        # ⚠️ PUT YOUR OWN WRITING HERE. Not AI text, not a sample from the web —
-        # things you actually wrote. This is the criterion that matters most and
-        # it's meaningless with someone else's prose.
-        "texts": [
-            "REPLACE ME with a paragraph you wrote yourself.",
-            "REPLACE ME with another one. Ten pieces is the usual number.",
-        ],
+        "texts": [LABEL_SAMPLES["human_original"]],
     },
     {
-        "name": "label coverage",
-        "criterion": 2,
-        # Inputs spread across your score range, so you can check all three
-        # labels are actually reachable.
-        "texts": [
-            "REPLACE ME with something you're confident is AI-generated.",
-            "REPLACE ME with something you're confident is human-written.",
-            "REPLACE ME with something genuinely borderline.",
-        ],
+        "name": "synthetic plain and formal writing",
+        "texts": STYLE_PROBES,
     },
-    # A bad-input criterion looks like this. Uncomment and adjust if that's one
-    # of your five — these are raw request bodies, sent exactly as written.
-    #
-    # {
-    #     "name": "bad input",
-    #     "criterion": 3,
-    #     "bodies": [
-    #         {"text": "", "creator_id": "eval_bad_empty"},
-    #         {"creator_id": "eval_bad_missing"},          # no text field at all
-    #         {"text": "word " * 50000, "creator_id": "eval_bad_huge"},
-    #         {"text": None, "creator_id": "eval_bad_null"},
-    #     ],
-    # },
-
-    # TODO: add what your remaining criteria need.
-    #
-    # A criterion about the appeal path can't be tested by sending text alone;
-    # it needs a submission first and then an appeal against the content_id
-    # that came back. You'll need to test that one by hand, or extend this file
-    # and run_eval.py to do it. Saying which you did is part of the write-up.
+    {
+        "name": "four AI-generated pieces",
+        "criterion": 2,
+        "texts": AI_GROUP,
+    },
+    {
+        "name": "six label samples",
+        "criterion": 3,
+        "texts": list(LABEL_SAMPLES.values()),
+    },
+    # Criterion 4 uses APPEAL_SAMPLES followed by separate /appeal requests.
+    {
+        "name": "twelve invalid submission bodies",
+        "criterion": 5,
+        "bodies": BAD_INPUTS,
+    },
 ]
 
 
@@ -92,12 +211,12 @@ def validate() -> list[str]:
             continue
 
         if bodies:
+            if not isinstance(bodies, list):
+                problems.append(f"scenario {i}, bodies must be a list of request bodies")
+                continue
             for j, body in enumerate(bodies, 1):
-                if not isinstance(body, dict):
-                    problems.append(
-                        f"scenario {i}, body {j} is not a dict — bodies are whole "
-                        f"request bodies, like {{'text': '', 'creator_id': 'x'}}"
-                    )
+                if not isinstance(body, (dict, list)):
+                    problems.append(f"scenario {i}, body {j} must be a JSON object or array")
             continue
 
         if not texts:

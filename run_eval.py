@@ -60,7 +60,7 @@ def bodies_for(scenario):
 
 def describe(body):
     """A short, readable note of what was sent — for the report."""
-    if set(body) == {"text", "creator_id"} and isinstance(body.get("text"), str):
+    if isinstance(body, dict) and set(body) == {"text", "creator_id"} and isinstance(body["text"], str):
         text = body["text"]
         return text[:70] if text else "(empty text)"
     return json.dumps(body)[:120]
