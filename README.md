@@ -368,24 +368,14 @@ I asked Codex to finish the labels and appeal route. It connected the labels, ra
 
 ## Rate Limiting
 
-**My limits:** ___ per minute, ___ per day
+The limit is 10 submissions per minute and 100 per day. Ten leaves room to revise a piece and try it again in the same minute. The daily limit caps how much scoring the same caller can use over a longer period.
 
-**Why those numbers and not others:**
-<!-- Think about two people: a real writer submitting their own work a few
-     times an hour, and a script sending a thousand variations to map your
-     thresholds. Your numbers have to be liveable for the first and hostile to
-     the second. -->
+The service counts a caller by their `creator_id` after trimming whitespace. It uses the source address when an ID is missing or invalid. For a real site, I'd use the signed-in account for the creator ID.
 
-**What a caller counts as:** <!-- per address, or per creator_id? They fail
-differently — one script can look like a thousand callers, and one household
-can look like one. -->
+The [Flask test client check](results/rate_limit_check.md) stopped at the first 429. The model ran for the first ten requests and the log recorded the last one as a rejection.
 
-**The run of status codes when I pushed past it:**
-
-<!-- python run_attacks.py --flood 15 -->
-
-```
-
+```text
+200 200 200 200 200 200 200 200 200 200 429
 ```
 
 ---

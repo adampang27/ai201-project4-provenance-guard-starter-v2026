@@ -38,19 +38,15 @@ app = Flask(__name__)
 
 
 # ── Rate limiting — UNIT 8 ────────────────────────────────────────────────────
-# Off until you turn it on. In unit 8, Milestone 1:
-#
-#   1. Set RATE_LIMITING_ENABLED = True in config.py (or AI201_RATE_LIMITS=1)
-#   2. Choose your numbers there
-#   3. Uncomment the @limiter.limit(...) line on /submit below
-#
-# The order doesn't matter. While limiting is off, that decorator is a no-op
-# that quietly does nothing, so uncommenting it early costs you nothing — but
-# it also means no 429 until you've done step 1.
-#
-# The storage backend is preconfigured, which stops Flask-Limiter printing a
-# warning on every start. In-memory is right for one laptop and wrong for
-# anything real — a restart forgets every count.
+
+def _submission_creator(payload):
+    """Extract the same normalized identifier used by the route and limiter."""
+    creator = payload.get("creator_id") if isinstance(payload, dict) else None
+    if isinstance(creator, str):
+        creator = creator.strip()
+        if 0 < len(creator) <= config.MAX_CREATOR_ID_CHARACTERS:
+            return creator
+    return None
 
 class _LimiterOff:
     """
@@ -71,23 +67,9 @@ if config.RATE_LIMITING_ENABLED:
     from flask_limiter.util import get_remote_address
 
     def rate_limit_key():
-        """
-        Who a request counts against.
-
-        Falling back to the caller's address is the easy version. Unit 8's
-        stretch asks about per-creator limits instead — and the difference
-        matters: one script can look like a thousand callers, and one household
-        can look like one.
-        """
-        payload = request.get_json(silent=True)
-        # A body that parses as JSON but isn't an object — a bare list or
-        # string — has no .get. Without this guard the key function raises
-        # BEFORE the route runs, and a malformed request becomes a 500 that
-        # looks like your handler crashed when your handler never ran.
-        if not isinstance(payload, dict):
-            return get_remote_address()
-        creator = payload.get("creator_id")
-        return creator if isinstance(creator, str) and creator.strip() else get_remote_address()
+        """Count a submission by creator, or by address if the ID is invalid."""
+        creator = _submission_creator(request.get_json(silent=True))
+        return f"creator:{creator}" if creator else f"address:{get_remote_address()}"
 
     limiter = Limiter(
         key_func=rate_limit_key,
@@ -98,17 +80,11 @@ if config.RATE_LIMITING_ENABLED:
 
     @app.errorhandler(429)
     def rate_limited(exc):
-        """
-        A rejected request still leaves a trace.
-
-        ⚠️ An attack that shows up only as an absence is one you'll never find.
-        """
-        payload = request.get_json(silent=True)
-        if not isinstance(payload, dict):
-            payload = {}
+        creator = _submission_creator(request.get_json(silent=True))
         audit.log_rejection(
-            creator_id=payload.get("creator_id", "unknown"),
+            creator_id=creator or "unknown",
             reason="rate_limited",
+            status_code=429,
             limit=str(exc.description),
         )
         return jsonify({
@@ -154,7 +130,7 @@ def health():
 # ── YOU BUILD THIS ────────────────────────────────────────────────────────────
 
 @app.post("/submit")
-# @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
+@limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
     """
     Validate text, run both signals, combine, log, and answer.
@@ -202,28 +178,34 @@ def submit():
     a malformed input is one of the most common real failures there is.
     """
     payload = request.get_json(silent=True)
+    creator = _submission_creator(payload)
+
+    def reject(status_code, error, message):
+        audit.log_rejection(creator or "unknown", reason=error, status_code=status_code)
+        return jsonify(error=error, message=message), status_code
+
     if not isinstance(payload, dict):
-        return jsonify(error="invalid_body", message="Send a JSON object with text and creator_id."), 400
+        return reject(400, "invalid_body", "Send a JSON object with text and creator_id.")
 
     text = payload.get("text")
     creator_id = payload.get("creator_id")
     if not isinstance(text, str) or not text.strip():
-        return jsonify(error="invalid_text", message="text must be a nonempty string."), 400
+        return reject(400, "invalid_text", "text must be a nonempty string.")
     if not isinstance(creator_id, str) or not creator_id.strip():
-        return jsonify(error="invalid_creator_id", message="creator_id must be a nonempty string."), 400
-    if len(text) > config.MAX_TEXT_CHARACTERS or len(creator_id.strip()) > config.MAX_CREATOR_ID_CHARACTERS:
-        return jsonify(error="input_too_large", message="text or creator_id exceeds the documented character limit."), 413
+        return reject(400, "invalid_creator_id", "creator_id must be a nonempty string.")
+    if len(text) > config.MAX_TEXT_CHARACTERS or creator is None:
+        return reject(413, "input_too_large", "text or creator_id exceeds the documented character limit.")
 
-    text, creator_id = text.strip(), creator_id.strip()
+    text = text.strip()
     if len(text.split()) < config.MIN_TEXT_WORDS:
-        return jsonify(error="text_too_short", message="text must contain at least 3 words."), 400
+        return reject(400, "text_too_short", "text must contain at least 3 words.")
 
     try:
         model_score = detector.model_signal(text)
     except detector.DetectorUnavailable:
-        return jsonify(error="detector_unavailable", message="The detector could not be loaded. Try again after checking the model installation."), 503
+        return reject(503, "detector_unavailable", "The detector could not be loaded. Try again after checking the model installation.")
     except ValueError:
-        return jsonify(error="invalid_text", message="The detector needs at least 3 tokens to score the text."), 400
+        return reject(400, "invalid_text", "The detector needs at least 3 tokens to score the text.")
 
     content_id = str(uuid.uuid4())
     style_score = stylometry.style_signal(text)
@@ -231,7 +213,7 @@ def submit():
     guess, label = scoring.score_to_label(confidence)
     audit.log_decision(
         content_id=content_id,
-        creator_id=creator_id,
+        creator_id=creator,
         guess=guess,
         model_score=model_score,
         style_score=style_score,
@@ -293,7 +275,7 @@ def get_log():
 def main():
     print(f"Provenance Guard on http://{config.HOST}:{config.PORT}")
     print(f"  detector model:  {config.DETECTOR_MODEL}")
-    print(f"  rate limiting:   {'ON' if config.RATE_LIMITING_ENABLED else 'off (unit 8)'}")
+    print(f"  rate limiting:   {'ON' if config.RATE_LIMITING_ENABLED else 'off'}")
     print(f"  audit log:       {config.AUDIT_LOG}")
     print()
     print("Check it's alive:")
