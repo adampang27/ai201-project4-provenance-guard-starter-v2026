@@ -404,17 +404,21 @@ whose work got caught by it:
 
 ## Run Log and Verdicts
 
-[Three local trials](results/eval_local_before.json) used the real model and the fixed inputs in [scenarios.py](scenarios.py). Each trial started with empty rate-limit counters. The audit log kept all three trials.
+The [original-writing trials](results/eval_original_writing_before.json), [score-spread trials](results/eval_score_spread_before.json), and [initial local trials](results/eval_local_before.json) used the local model and the inputs in [scenarios.py](scenarios.py). Each trial started with empty rate-limit counters. The audit log kept the results.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. My own writing | 0 of 8 called AI | 0 of 1 | 0 of 1 | 0 of 1 | Pending 7 original pieces |
-| 2. Score spread | AI median at least 0.20 higher | AI median 0.66675 | AI median 0.66675 | AI median 0.66675 | Pending 3 original pieces for the human group |
+| 1. My own writing | 0 of 8 called AI | 0 of 8 | 0 of 8 | 0 of 8 | MET |
+| 2. Score spread | AI median at least 0.20 higher | +0.17050 | +0.17050 | +0.17050 | MISSED |
 | 3. Label coverage | All three labels in 6 submissions, with different labels at 0.51 and 0.95 | All three, different at both scores | All three, different at both scores | All three, different at both scores | MET |
 | 4. Appeals | 3 saved appeals, same IDs, unknown ID returns 404 | 3 of 3, unknown 404 | 3 of 3, unknown 404 | 3 of 3, unknown 404 | MET |
 | 5. Bad input | Eleven 400s and one 413, all with JSON errors and zero model calls or decisions | 12 of 12 | 12 of 12 | 12 of 12 | MET |
 
-The eight plain and formal samples are synthetic. They returned zero AI labels in each trial, and their median score was 0.4894. The first two criteria call for unedited writing of my own, so the synthetic samples stay outside those verdicts.
+The first criterion used my Unit 7 draft and seven replies to the Unit 8 writing prompts. In each trial, the draft got `human` and the other seven got `unsure`.
+
+The score-spread trials used my Unit 7 draft and my replies about consistency, the team note, and the course summary. I used the same four pieces for all three trials. The median was `0.49625` for my writing and `0.66675` for the AI-generated group.
+
+The eight synthetic plain and formal samples were tested separately. They returned zero AI labels in each initial trial, and their median score was `0.4894`.
 
 Trial 1 excerpt from the measurements of `app.py::submit`, `app.py::appeal`, and `scoring.py::score_to_label`. The linked JSON includes each request result, error, and audit check.
 
@@ -449,7 +453,9 @@ Trial 1 excerpt from the measurements of `app.py::submit`, `app.py::appeal`, and
 
 **Diagnoses**
 
-Criteria 3–5 met their targets in each local trial. Criteria 1 and 2 need the original writing samples for a verdict. The staff report is still pending.
+The score spread missed at the combining rule. The model scores alone had a median gap of `0.3181`, while the style scores had a gap of `0.0229`. Giving both signals equal weight pulled those groups closer together. For example, the team note got `0.5301` from the model and `0.6600` from style, which raised its combined score to `0.5951`.
+
+Criteria 1 and 3–5 met their targets in each local trial. The staff report is pending.
 
 ---
 

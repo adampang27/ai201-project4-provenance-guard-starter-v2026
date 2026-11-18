@@ -135,6 +135,57 @@ GENERATED_SAMPLES = {
 }
 
 STYLE_PROBES = [text for name, text in GENERATED_SAMPLES.items() if name.startswith(("plain_", "formal_"))]
+
+# The Unit 7 draft and the learner's numbered replies to the Unit 8 prompts.
+# Keep the wording of each reply, including placeholders and typos.
+AUTHOR_SAMPLES = {
+    "unit7_draft": LABEL_SAMPLES["human_original"],
+    "1_ubuntu_update": (
+        "I was using a fresh distribution update for Ubuntu Linux. I noticed that one of "
+        "the packages did not update, and I wanted to be able to use it as soon as possible. "
+        "So I had an AI agent to find out a way to port it over and be able to use it."
+    ),
+    "2_cooking": (
+        "Cooking typically goes way longer than I'd like it to. I always underestimate "
+        "myself and the time it takes for me to cook. I should start planning out each steps "
+        "and the projected time from start to finish."
+    ),
+    "3_consistency": (
+        "I learnt that consistency is always better than intensity. I used to rely on bursts "
+        "of hard effort and trying to believe that the reward or relaxation afterward would "
+        "last forever. However, life isn't like that nor will it reward you with everlasting "
+        "peace. Noticing how you feel and your energy levels also helps with being consistent "
+        "at something and that leads to greater results."
+    ),
+    "4_productivity": (
+        "I decided to read productivity quick tips and compare strategies instead of actually "
+        "practicing or implementing them. I think I defaulted into doing the easier route "
+        "because I thought it would give me similar benefits, but in reality, I was probably "
+        "avoiding the necessary work."
+    ),
+    "5_team_note": (
+        "Hey team, I noticed that xyz has been giving us the reoccuring issue of xyz. I think "
+        "we should try to do xyz because xyz would reduce the issue xyz."
+    ),
+    "6_course_summary": (
+        "In CodePath's AI Engineering course, I learned how to trace a model's output and "
+        "workflow, from start to finish. We had assignments on creating a system that was "
+        "optimized for observability and maintenance, and I think it helped me develop how to "
+        "think as an engineer. I looked at the data, how the model retrieved it and what "
+        "guidance it underwent, and how everything shaped the result."
+    ),
+    "7_upload_notice": (
+        "Hello,\n"
+        "I saw that <insert platform name> wasn't able to accept your upload and it says it "
+        "failed/no-upload from here. Could you try to see if you have the right file type and "
+        "if you get a confirmation message? Feel free to contact me or the course assistants "
+        "if you need more help!"
+    ),
+}
+
+# Fix the median comparison group before scoring. It includes both registers.
+HUMAN_GROUP_NAMES = ("unit7_draft", "3_consistency", "5_team_note", "6_course_summary")
+HUMAN_GROUP = [AUTHOR_SAMPLES[name] for name in HUMAN_GROUP_NAMES]
 AI_GROUP = [
     LABEL_SAMPLES["ai_original"],
     LABEL_SAMPLES["ai_light_edit"],
@@ -160,9 +211,9 @@ BAD_INPUTS = [
 
 SCENARIOS = [
     {
-        "name": "original draft (partial)",
+        "name": "my own writing",
         "criterion": 1,
-        "texts": [LABEL_SAMPLES["human_original"]],
+        "texts": list(AUTHOR_SAMPLES.values()),
     },
     {
         "name": "synthetic plain and formal writing",
@@ -172,6 +223,11 @@ SCENARIOS = [
         "name": "four AI-generated pieces",
         "criterion": 2,
         "texts": AI_GROUP,
+    },
+    {
+        "name": "four human-written pieces",
+        "criterion": 2,
+        "texts": HUMAN_GROUP,
     },
     {
         "name": "six label samples",
